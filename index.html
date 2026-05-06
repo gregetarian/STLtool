@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STL Quote Tool</title>
+<style>
+  :root {
+    --bg: #faf8f3;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #d8d4c8;
+    --accent: #c2410c;
+    --accent-soft: #fff7ed;
+    --panel: #ffffff;
+    --good: #166534;
+    --bad: #991b1b;
+    --range: #c2410c20;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    color: var(--muted);
+    margin: 4px 0 0;
+    font-size: 13px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel h3 {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 14px 0 8px;
+  }
+  .drop {
+    border: 1.5px dashed var(--line);
+    border-radius: 4px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    display: block;
+  }
+  .drop.hover { border-color: var(--accent); background: var(--accent-soft); }
+  .drop p { margin: 0; color: var(--muted); }
+  .drop strong { color: var(--ink); display: block; margin-bottom: 4px; }
+  input[type=file] { display: none; }
+
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 0;
+    gap: 12px;
+  }
+  .field label {
+    font-size: 13px;
+    color: var(--muted);
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .field .info {
+    cursor: help;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    text-align: center;
+    line-height: 12px;
+    font-size: 9px;
+    flex: 0 0 14px;
+  }
+  .field input[type=number], .field select {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--bg);
+    width: 110px;
+    text-align: right;
+  }
+  .field select { width: auto; min-width: 140px; text-align: left; }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .field input[type=range] {
+    flex: 1 1 auto;
+    width: auto;
+  }
+  .range-row {
+    display: grid;
+    grid-template-columns: 1fr 60px;
+    gap: 8px;
+    align-items: center;
+    margin: 8px 0;
+  }
+  .range-row label { font-size: 12px; color: var(--muted); grid-column: 1 / -1; display:flex; gap:4px; align-items:center; }
+  .range-row .val { font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-align: right; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  .stats .k { color: var(--muted); }
+  .stats .v { text-align: right; font-weight: 500; }
+  .stats .v.ok { color: var(--good); }
+  .stats .v.fail { color: var(--bad); }
+
+  table.quotes {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  table.quotes th, table.quotes td {
+    text-align: left;
+    padding: 9px 8px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  table.quotes th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 500;
+    cursor: help;
+  }
+  table.quotes td.num { text-align: right; font-family: 'IBM Plex Mono', monospace; }
+  table.quotes td.range { text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+  table.quotes td.price { font-weight: 500; color: var(--accent); font-size: 14px; }
+  table.quotes td.price-range { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #2563eb; }
+  /* Subtle blue badge for the bound, so customers see it's a range, not a different price. */
+  .ci-low, .ci-high {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+  }
+  .ci-low  { background: #dbeafe; color: #1e3a8a; }   /* low = blue */
+  .ci-high { background: #fee2e2; color: #991b1b; }   /* high = warm red */
+  .ci-sep  { color: var(--muted); padding: 0 3px; }
+  .ci-explainer {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    border-radius: 2px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .ci-explainer strong { color: var(--ink); }
+  .strategy-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) {
+    .strategy-cards { grid-template-columns: 1fr; }
+  }
+  table.quotes tr.recommended { background: var(--accent-soft); }
+  table.quotes tr.recommended td:first-child::before {
+    content: "★ ";
+    color: var(--accent);
+  }
+
+  .full {
+    grid-column: 1 / -1;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+  }
+  .warn {
+    background: #fef3c7;
+    border-left: 3px solid #d97706;
+    padding: 8px 12px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #78350f;
+    border-radius: 2px;
+  }
+  details {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  details summary {
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  details p { margin: 8px 0; }
+  details code {
+    background: var(--bg);
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  details ul { margin: 4px 0 8px; padding-left: 22px; }
+  details li { margin: 4px 0; }
+  details h4 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    margin: 18px 0 6px;
+  }
+  .filename {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 6px;
+    word-break: break-all;
+  }
+
+  /* Three.js viewer */
+  #viewer {
+    width: 100%;
+    height: 380px;
+    background: #f0ede4;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+  #viewer canvas { display: block; outline: none; }
+  #viewerEmpty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    pointer-events: none;
+  }
+  .viewer-help {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* Tooltip via title attribute - browsers default styling.
+     For richer tooltips we use a custom data-tip attribute. */
+  [data-tip] {
+    position: relative;
+  }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    background: var(--ink);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    white-space: pre-line;
+    width: max-content;
+    max-width: 320px;
+    z-index: 100;
+    pointer-events: none;
+    line-height: 1.4;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+  }
+  [data-tip]:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: var(--ink);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .accuracy-badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 2px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: normal;
+    margin-left: 8px;
+  }
+
+  .breakdown {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    display: none;
+  }
+  .breakdown.show { display: block; }
+  .breakdown table { width: 100%; border-collapse: collapse; }
+  .breakdown td { padding: 2px 4px; }
+  .breakdown td:last-child { text-align: right; }
+  .breakdown tr.total { border-top: 1px solid var(--line); font-weight: 500; }
+  .breakdown tr.total td { padding-top: 4px; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    margin-left: 6px;
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="page">
+<header>
+  <h1>stl quote tool <span style="font-size: 12px; color: var(--muted); font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 8px;">— built by Greg Cooper PhD for Scoops Web</span></h1>
+  <p style="margin-top: 8px;">                                                                  
+      <strong>What this solves:</strong> We want quote a customer's STL upload in seconds — without uploading the file to a server, without running a real slicer, and accurately enough to commit to a price. This tool does that in your browser. Drop an STL, see it in 3D, and get itemised quotes with upper and lower bounds based on a model validated against 147 real-world STL models drawn from the <a href="https://ten-thousand-models.appspot.com/" target="_blank" rel="noopener" style="color:var(--accent);">Thingi10K</a> dataset and sliced by real slicing software — PrusaSlicer 2.9.4 — at three strategies each, for 439 ground-truth jobs in total.
+  </p>
+</header>
+
+<div class="grid">
+
+  <!-- LEFT: file + 3D viewer -->
+  <section class="panel">
+    <h2>1. File <span class="pill" id="triCount">no file</span></h2>
+    <label class="drop" id="drop">
+      <strong id="dropTitle">Drop .stl here</strong>
+      <p id="dropSub">or click to browse</p>
+      <input type="file" id="file" accept=".stl">
+    </label>
+    <div class="filename" id="filename"></div>
+    <div id="viewer" style="margin-top: 14px;">
+      <div id="viewerEmpty">3D preview appears after upload</div>
+    </div>
+    <div class="viewer-help">drag = rotate · scroll = zoom · right-drag = pan</div>
+  </section>
+
+  <!-- RIGHT: ALL parameters (job + slicer + strategies) -->
+  <section class="panel">
+    <h2>2. Job parameters</h2>
+
+    <h3>Bed constraints</h3>
+    <div class="field">
+      <label data-tip="Quote will warn if Z-height of the part is below this value.">
+        Min height (mm) <span class="info">?</span>
+      </label>
+      <input type="number" id="minH" value="0" min="0" step="0.1">
+    </div>
+    <div class="field">
+      <label data-tip="Quote will warn if Z-height of the part exceeds this value (printer build volume Z).">
+        Max height (mm) <span class="info">?</span>
+      </label>
+      <input type="number" id="maxH" value="250" min="1" step="0.1">
+    </div>
+
+    <h3>Material</h3>
+    <div class="field">
+      <label data-tip="Selects density (g/cm³) and base price (£/kg). You can override both below.">
+        Filament <span class="info">?</span>
+      </label>
+      <select id="material"></select>
+    </div>
+    <div class="field">
+      <label data-tip="Mass = volume × density. PLA ≈ 1.24, PETG ≈ 1.27, ABS ≈ 1.04, TPU ≈ 1.20, Nylon PA12 ≈ 1.10, SLA resin ≈ 1.15.">
+        Density (g/cm³) <span class="info">?</span>
+      </label>
+      <input type="number" id="materialDensity" step="0.01" min="0.5" max="2.5">
+    </div>
+    <div class="field">
+      <label data-tip="Spool price per kilogram. UK prices in 2025 typically: PLA £18-25, PETG £20-30, ABS £20-26, TPU £30-45, Nylon £45-65, SLA resin £40-80.">
+        Price (£/kg) <span class="info">?</span>
+      </label>
+      <input type="number" id="materialPrice" step="0.50" min="0">
+    </div>
+
+    <h3>Costs</h3>
+    <div class="field">
+      <label data-tip="Hourly cost of running the printer (depreciation + maintenance, NOT electricity — that's separate below). Bureaus typically charge £1-3/h.">
+        Machine rate (£/h) <span class="info">?</span>
+      </label>
+      <input type="number" id="rate" value="1.50" min="0" step="0.10">
+    </div>
+    <div class="field">
+      <label data-tip="One-off cost per job: file handling, slicing review, removing the part, packaging.">
+        Setup fee (£) <span class="info">?</span>
+      </label>
+      <input type="number" id="setup" value="3.00" min="0" step="0.50">
+    </div>
+    <div class="field">
+      <label data-tip="Average power draw of the printer in watts (heated bed + hotend + motors). Bambu A1 ≈ 100W, Prusa MK4 ≈ 80W, big i3 with bed at 110°C ≈ 250W.">
+        Printer power (W) <span class="info">?</span>
+      </label>
+      <input type="number" id="powerW" value="100" min="0" step="10">
+    </div>
+    <div class="field">
+      <label data-tip="UK domestic electricity ≈ £0.27/kWh (Ofgem cap 2024–25). Business tariffs vary.">
+        Electricity (£/kWh) <span class="info">?</span>
+      </label>
+      <input type="number" id="electricity" value="0.27" min="0" step="0.01">
+    </div>
+    <div class="field">
+      <label data-tip="Markup applied to (material + machine + electricity + setup) to cover risk, failed prints, your time, profit margin. The validated time-prediction p10–p90 band ≈ ±47%, so 15-25% margin keeps a quote within the upper bound on most jobs.">
+        Margin / markup (%) <span class="info">?</span>
+      </label>
+      <input type="number" id="markup" value="20" min="0" max="100" step="1">
+    </div>
+
+    <h3>Slicer settings</h3>
+    <div class="field">
+      <label data-tip="Nozzle diameter sets perimeter wall width. Standard 0.4mm; high-detail 0.25mm; high-throughput 0.6-0.8mm.">
+        Nozzle diameter (mm) <span class="info">?</span>
+      </label>
+      <input type="number" id="nozzle" value="0.4" min="0.1" max="1.5" step="0.05">
+    </div>
+    <div class="field">
+      <label data-tip="Total solid skin thickness (top + bottom layers projected onto the footprint). PrusaSlicer default ≈ 5 + 5 layers × 0.2mm ≈ 1mm effective.">
+        Skin thickness (mm) <span class="info">?</span>
+      </label>
+      <input type="number" id="skin" value="1.0" min="0.2" max="3.0" step="0.1">
+    </div>
+
+    <h3>Strategies <span style="font-size: 10px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted);">(every cell is editable)</span></h3>
+    <div id="strategiesEditor"></div>
+    <p style="font-size: 11px; color: var(--muted); margin-top: 8px;">
+      <button id="resetDefaults" style="font-family: inherit; font-size: 11px; padding: 4px 10px; cursor: pointer; border: 1px solid var(--line); background: var(--bg); border-radius: 3px;">↻ Reset all parameters to validated defaults</button>
+    </p>
+  </section>
+
+</div>
+
+<!-- Mesh stats -->
+<section class="panel">
+  <h2>3. Mesh analysis</h2>
+  <div id="stats" class="empty">Upload a file to see volume, bounding box, and validation.</div>
+</section>
+
+<!-- Quote -->
+<section class="panel">
+  <h2>4. Quote
+    <span class="accuracy-badge" data-tip="Material model validated to 5.7% median error on solid (default) strategy on 439 PrusaSlicer ground-truth slices from 147 real-world Thingi10K meshes. Time prediction validated to 17% median error using held-out 5-fold cross-validation. The low-high range is the empirical 10th–90th percentile of CV residuals — i.e. 80% of real prints have actually fallen in that bracket.">5.7% material · 17% time (median CV)</span>
+  </h2>
+  <div id="quote" class="empty">Quote appears once a valid STL is loaded.</div>
+</section>
+
+<!-- Section 5: Strategy descriptions -->
+<section class="panel">
+  <h2>5. Which strategy should you pick?</h2>
+  <div class="strategy-cards">
+    <div style="border-left: 3px solid #1f77b4; padding: 4px 12px;">
+      <h3 style="margin: 0 0 6px; color: var(--ink); font-family: 'IBM Plex Mono', monospace;">Draft</h3>
+      <p style="font-size: 12px; color: var(--ink); margin: 6px 0;"><strong>Fast &amp; cheap.</strong></p>
+      <p style="font-size: 12px; color: var(--muted); margin: 6px 0; line-height: 1.4;">10% infill, 0.28 mm layers, 2 walls. Minimal plastic, visible layer lines, OK for prototypes and parts that don't bear load.</p>
+      <p style="font-size: 11px; color: var(--muted); margin-top: 8px;"><em>Pick when: throwaway prototype, fit-check, low cost matters more than appearance.</em></p>
+    </div>
+    <div style="border-left: 3px solid #ff7f0e; padding: 4px 12px;">
+      <h3 style="margin: 0 0 6px; color: var(--ink); font-family: 'IBM Plex Mono', monospace;">Standard</h3>
+      <p style="font-size: 12px; color: var(--ink); margin: 6px 0;"><strong>Balanced for everyday parts.</strong></p>
+      <p style="font-size: 12px; color: var(--muted); margin: 6px 0; line-height: 1.4;">20% infill, 0.20 mm layers, 3 walls. Good surface finish, reasonable strength, sensible default for most jobs.</p>
+      <p style="font-size: 11px; color: var(--muted); margin-top: 8px;"><em>Pick when: general-purpose part, decoration, brackets, enclosures.</em></p>
+    </div>
+    <div style="border-left: 3px solid #2ca02c; padding: 4px 12px;">
+      <h3 style="margin: 0 0 6px; color: var(--ink); font-family: 'IBM Plex Mono', monospace;">Solid</h3>
+      <p style="font-size: 12px; color: var(--ink); margin: 6px 0;"><strong>Strong, dense, slowest.</strong></p>
+      <p style="font-size: 12px; color: var(--muted); margin: 6px 0; line-height: 1.4;">50% infill, 0.16 mm layers, 4 walls. Fine layer lines, much stronger interior, near-injection-moulded feel. The default for our quote tool.</p>
+      <p style="font-size: 11px; color: var(--muted); margin-top: 8px;"><em>Pick when: load-bearing part, customer-facing finish, end-use product.</em></p>
+    </div>
+  </div>
+</section>
+
+<!-- Section 6: Plain-English explanation -->
+<section class="panel">
+  <h2>6. How this works (plain English)</h2>
+
+  <p style="font-size: 14px; line-height: 1.55;">A 3D printer lays plastic down in thin horizontal layers. To quote a print, you need to know how much plastic and how much time. A <em>real</em> slicer (PrusaSlicer, Cura, Bambu) computes those numbers exactly by simulating every nozzle move — but slicers are big native programs that don't run in a web page. While we could do this in theory, we'd need to write or buy some software and have it set up to be permanently running on a server somewhere. This is doable, but difficult, expensive, and slow to run. So this tool approximates them in your browser to a reasonable degree using mesh geometry.</p>
+
+  <h3>The shortcut, in 30 seconds</h3>
+  <p style="font-size: 14px; line-height: 1.55;">When the slicer prints a part, the plastic ends up in four kinds of place:</p>
+  <ul style="font-size: 14px; line-height: 1.6;">
+    <li><strong>Walls (perimeter)</strong> — the outer skin of the part. We approximate this from the part's vertical surface area × wall thickness × wall count.</li>
+    <li><strong>Top &amp; bottom (skin)</strong> — solid roof and floor layers. We approximate from the part's footprint × skin thickness.</li>
+    <li><strong>Infill</strong> — the sparse honeycomb that fills the inside. We compute the leftover internal volume × infill percentage.</li>
+    <li><strong>Support</strong> — temporary scaffolding under overhangs. We cast rays downward from each overhang and measure the gap.</li>
+  </ul>
+  <p style="font-size: 14px; line-height: 1.55;">Add those up, multiply by a tiny calibration factor (1.06×) to account for how the slicer actually overlaps extrusion lines, and you get the predicted material in cm³.</p>
+
+  <p style="font-size: 14px; line-height: 1.55;">Time is harder. The original heuristic <code>time = material × constant</code> was off by ~40%. The new model uses three terms — material, layer count (a tall thin part has many short layers each with their own overhead), and footprint (each top/bottom layer takes time proportional to area).</p>
+
+  <h3>How accurate is it?</h3>
+  <p style="font-size: 14px; line-height: 1.55;">We sliced 147 real-world meshes of random 3D objects (from a free opensource dataset called Thingi10K) at three settings each in PrusaSlicer 2.9.4 to get 439 ground-truth measurements.
+  </p>
+  <h3>Held-out cross-validation:</h3>
+  <ul style="font-size: 14px; line-height: 1.6;">
+    <li><strong>Material</strong>: 5.7% median error on solid (the default), 7.1% on standard, 16.6% on draft. Overall 9.4%.</li>
+    <li><strong>Time</strong>: 17% median error on solid. The 90th-percentile error is 48% — that's where the upper-bound on the quote range comes from.</li>
+  </ul>
+  <p style="font-size: 14px; line-height: 1.55;">A real slicer would hit ~2-5% but at the cost of a server, file uploads, and 5-30 second wait times. This tool's trade-off is honest: a slightly wider quote range, in your browser, in &lt;2 seconds, with no infrastructure.</p>
+
+  <h3>Why does the quote show a range?</h3>
+  <p style="font-size: 14px; line-height: 1.55;">Because the time prediction is on average 17% off, but in 10% of cases (long lattices, tall thin parts, anything that triggers cooling delays) it's 50%+ off. We measure that distribution empirically from the validation set and report the 10th-90th percentile as <code>[low, high]</code>. If you tell a customer "this will be £X.YZ" without a range, you'll occasionally lose money on the long-tail prints. The bracket is the honest version.</p>
+</section>
+
+<!-- Methodology -->
+<section class="panel">
+  <h2>7. How the numbers are computed (for nerds)</h2>
+  <p style="font-size: 13px; color: var(--ink);">Everything below runs in your browser. No file upload, no server, no database. The STL is parsed in JavaScript, the mesh metrics are computed in a single pass over the triangles, and the quote follows from a fitted physical model.</p>
+
+  <details open style="margin-top: 10px;">
+    <summary>Mesh metrics</summary>
+
+    <h4>Volume</h4>
+    <p>Signed-tetrahedron sum: for each triangle <code>(v1, v2, v3)</code> we compute <code>V_tet = (v1 · (v2 × v3)) / 6</code> and sum over all triangles. The result is the enclosed volume regardless of where the origin sits — works for any closed mesh.</p>
+
+    <h4>Vertical area, footprint, support potential</h4>
+    <p>Each triangle's normal is classified by its z-component:</p>
+    <ul>
+      <li><strong>Vertical area</strong> = sum of areas where <code>|n_z| &lt; 0.7</code> (sidewalls). Becomes perimeter material.</li>
+      <li><strong>Footprint</strong> = sum of areas where <code>|n_z| &gt; 0.7</code>, divided by 2 (top-down silhouette). Becomes solid skin.</li>
+      <li><strong>Support potential</strong>: for each downward-facing triangle (<code>n_z &lt; −0.7</code>), cast a downward ray from its centroid; find the highest surface beneath using a 2D spatial grid + analytic ray-triangle intersection. Multiply triangle area by the gap, sum.</li>
+    </ul>
+    <p>The raycaster correctly handles stacked geometry (a step in a pyramid sits directly on the step below, so the gap is zero — no phantom support).</p>
+  </details>
+
+  <details>
+    <summary>Material model (deployed Model 4)</summary>
+    <p>Material is decomposed into four physical contributions:</p>
+    <ul>
+      <li><code>perimeter = vertical_area × wall_width × n_perimeters</code>, capped at total volume</li>
+      <li><code>skin = footprint × skin_thickness</code>, capped at remaining volume</li>
+      <li><code>infill = max(0, volume − perimeter − skin) × infill_fraction</code></li>
+      <li><code>support = support_potential × support_density</code></li>
+    </ul>
+    <p>Total: <code>material = scale × (perimeter + skin + infill) + support_density × support_potential</code>.</p>
+    <p>Two global parameters fitted by NNLS against PrusaSlicer ground truth: <code>scale = 1.0565</code> (slicer extrusion overlap correction) and <code>support_density = 0.2919</code> (PrusaSlicer's sparse-support fill rate).</p>
+    <p><strong>Validation</strong> (held-out 5-fold CV, 439 jobs from 147 real-world meshes via Thingi10K): <strong>9.4% median, 35% p90</strong> overall; per strategy <strong>solid 5.7%, standard 7.1%, draft 16.6%</strong>. Per-strategy refit was tested in <code>notebook_v2.py</code> (M1) and improved draft modestly but at the cost of solid; the deployed single global scale is kept because solid is the default and benefits most.</p>
+  </details>
+
+  <details>
+    <summary>Print-time model (T3, new)</summary>
+    <p>The original heuristic <code>time = material × per_strategy_const</code> was off by 37% median on solid. T3 replaces it with a three-term linear regression:</p>
+    <p><code>time = a_strategy × material + b_strategy × layer_count + c × footprint</code></p>
+    <p>where <code>layer_count = bbox_z / strategy.layer_height</code> and the third term captures per-layer skin-fill time. Coefficients fit by relative-loss NNLS:</p>
+    <ul>
+      <li><code>a</code> (h per cm³ of material): solid 0.0818, standard 0.0710, draft 0.0609</li>
+      <li><code>b</code> (h per layer): solid 0.001061, standard 0.001123, draft 0.001288</li>
+      <li><code>c</code> (h per cm² of footprint): 0.008993 (shared across strategies)</li>
+    </ul>
+    <p><strong>Validation</strong> (held-out 5-fold CV): <strong>17.3% median, 48% p90</strong> on solid. Compared to <strong>42% median</strong> for the deployed material × const. A gradient-boosting regressor on the same features hit 18.2%, confirming we are at the linear-model noise floor for available features.</p>
+  </details>
+
+  <details>
+    <summary>Low–high range (quantile band)</summary>
+    <p>The point estimate for time is roughly 17% off in the median case. Rather than pretend it's exact, we show a low–high range derived from empirical CV residual quantiles:</p>
+    <ul>
+      <li><strong>P10–P90 band</strong> ≈ <code>[0.86 × point, 1.80 × point]</code>. 80% of validation jobs fall in this range.</li>
+      <li><strong>Asymmetric on the high side</strong>: long-tail prints (lattices, tall thin parts with cooling delays) skew above the point estimate, so the upper edge is ~80% above the point but the lower is only 14% below.</li>
+    </ul>
+    <p>For quoting customers, use the high-end of the range; for scheduling your queue, plan against the high end too. The point estimate is closer to the median print, not the worst case.</p>
+  </details>
+
+  <details>
+    <summary>Cost roll-up</summary>
+    <p>Final price per strategy is:</p>
+    <p><code>cost = setup + (weight × £/kg) + (time × machine £/h) + (time × power_kW × £/kWh)</code> then × <code>(1 + markup%)</code></p>
+    <p>Weight = <code>material × density</code>. The recommended (★) row is the cheapest after markup. Energy cost is usually small (£0.05–0.30 per print) but worth surfacing for transparency on long jobs.</p>
+  </details>
+
+  <details>
+    <summary>Caveats and known failure modes</summary>
+    <ul>
+      <li><strong>Non-watertight STLs</strong> generate phantom support potential (interior surfaces look like overhangs to the raycaster). One Thingi10K mesh had support_potential 6× the part's actual material — predictions on such meshes can be off by 100%+. Best practice: ask customers for clean, watertight files.</li>
+      <li><strong>Tiny parts (&lt;100 mm³)</strong> have median errors above 50% because per-print fixed overhead (skirt, brim, prime tower) is invisible to the model. Refuse to quote or apply a flat minimum.</li>
+      <li><strong>Stepped geometry</strong> (e.g. layered terrain) under-predicts skin material because internal horizontal ledges are missed. Real slicers detect these via projection up/down by <code>n_solid_layers × layer_height</code>; we don't.</li>
+      <li><strong>Time depends on printer</strong>: speeds, accelerations, fan curves all matter. The validated time model assumes a Prusa MK3-class printer with default profile. Faster printers will under-shoot, slower ones over-shoot.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Coefficients are editable above</summary>
+    <p>Every parameter exposed in the UI is live: nozzle, skin thickness, infill, walls, layer height, machine rate, power, electricity, markup. The scale/support_density coefficients are baked into the JS for now — edit them in the source if you want to recalibrate against your own slicer/printer.</p>
+  </details>
+</section>
+
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// =================================================================
+// MATERIAL DATA — editable defaults. User can override per session.
+// =================================================================
+const MATERIAL_DEFAULTS = {
+  pla:   { name: "PLA",          density: 1.24, price: 20 },
+  petg:  { name: "PETG",         density: 1.27, price: 24 },
+  abs:   { name: "ABS",          density: 1.04, price: 22 },
+  tpu:   { name: "TPU flexible", density: 1.20, price: 35 },
+  nylon: { name: "Nylon PA12",   density: 1.10, price: 55 },
+  resin: { name: "SLA resin",    density: 1.15, price: 60 },
+};
+
+// =================================================================
+// SLICING STRATEGIES — editable in the Advanced section.
+// =================================================================
+const STRATEGY_DEFAULTS = [
+  { id: "draft",    label: "Draft",    infill: 0.10, layer: 0.28, walls: 2 },
+  { id: "standard", label: "Standard", infill: 0.20, layer: 0.20, walls: 3 },
+  { id: "solid",    label: "Solid",    infill: 0.50, layer: 0.16, walls: 4 },
+];
+let STRATEGIES = JSON.parse(JSON.stringify(STRATEGY_DEFAULTS));
+
+// =================================================================
+// PHYSICS — fitted against PrusaSlicer ground truth on 439 jobs.
+// Material model is the deployed Model 4 (single global scale +
+// support_density). Time model is T3 (per-strategy a,b + global c).
+// =================================================================
+const PHYSICS = {
+  scale: 1.0565,            // slicer extrusion-overlap correction
+  supportDensity: 0.2919,   // sparse-support fill rate (PrusaSlicer)
+};
+
+// T3 coefficients: time = a_strategy * material_cm3
+//                       + b_strategy * (bbox_z_mm / strategy.layer)
+//                       + c          * footprint_cm2
+const TIME_MODEL = {
+  a: { solid: 0.0818, standard: 0.0710, draft: 0.0609 },  // h/cm³
+  b: { solid: 0.001061, standard: 0.001123, draft: 0.001288 },  // h/layer
+  c: 0.008993,             // h/cm² (shared)
+};
+
+// Empirical CV residual quantiles. Multiply point estimate by these.
+// Coverage validated on 439 jobs / 147 meshes.
+const TIME_BAND = {
+  solid:    { p10: 0.856, p25: 0.952, p75: 1.437, p90: 1.768 },
+  standard: { p10: 0.861, p25: 0.980, p75: 1.447, p90: 1.805 },
+  draft:    { p10: 0.871, p25: 0.961, p75: 1.393, p90: 1.782 },
+};
+
+// =================================================================
+// STL PARSER — handles both binary and ASCII. Same as deployed.
+// =================================================================
+function parseSTL(buffer) {
+  const view = new DataView(buffer);
+  const head = new Uint8Array(buffer, 0, 5);
+  const isAsciiStart = String.fromCharCode(...head) === "solid";
+  if (isAsciiStart) {
+    if (buffer.byteLength >= 84) {
+      const tris = view.getUint32(80, true);
+      if (84 + tris * 50 !== buffer.byteLength) return parseAsciiSTL(buffer);
+    } else {
+      return parseAsciiSTL(buffer);
+    }
+  }
+  return parseBinarySTL(view);
+}
+function parseBinarySTL(view) {
+  const triCount = view.getUint32(80, true);
+  const tris = new Float32Array(triCount * 9);
+  let offset = 84;
+  for (let i = 0; i < triCount; i++) {
+    offset += 12;
+    for (let j = 0; j < 9; j++) {
+      tris[i * 9 + j] = view.getFloat32(offset, true);
+      offset += 4;
+    }
+    offset += 2;
+  }
+  return tris;
+}
+function parseAsciiSTL(buffer) {
+  const text = new TextDecoder().decode(buffer);
+  const out = [];
+  const re = /vertex\s+([\-\d\.eE+]+)\s+([\-\d\.eE+]+)\s+([\-\d\.eE+]+)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    out.push(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]));
+  }
+  return new Float32Array(out);
+}
+
+// =================================================================
+// MESH METRICS — physical decomposition + raycast support detection.
+// =================================================================
+function meshMetrics(tris) {
+  let volume = 0;
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  let area = 0, verticalArea = 0, horizontalArea = 0;
+  const nTris = tris.length / 9;
+  const triCx = new Float32Array(nTris);
+  const triCy = new Float32Array(nTris);
+  const triCz = new Float32Array(nTris);
+  const triArea = new Float32Array(nTris);
+  const triNzNorm = new Float32Array(nTris);
+  const triMinX = new Float32Array(nTris);
+  const triMaxX = new Float32Array(nTris);
+  const triMinY = new Float32Array(nTris);
+  const triMaxY = new Float32Array(nTris);
+  for (let i = 0, ti = 0; i < tris.length; i += 9, ti++) {
+    const ax = tris[i], ay = tris[i+1], az = tris[i+2];
+    const bx = tris[i+3], by = tris[i+4], bz = tris[i+5];
+    const cx = tris[i+6], cy = tris[i+7], cz = tris[i+8];
+    volume += (ax*(by*cz - bz*cy) + ay*(bz*cx - bx*cz) + az*(bx*cy - by*cx)) / 6;
+    const ux=bx-ax, uy=by-ay, uz=bz-az;
+    const vx=cx-ax, vy=cy-ay, vz=cz-az;
+    const nx = uy*vz - uz*vy;
+    const ny = uz*vx - ux*vz;
+    const nz = ux*vy - uy*vx;
+    const cross = Math.sqrt(nx*nx + ny*ny + nz*nz);
+    const a = cross / 2;
+    area += a;
+    const nzNorm = cross > 0 ? nz / cross : 0;
+    if (Math.abs(nzNorm) > 0.7) horizontalArea += a;
+    else                        verticalArea   += a;
+    if (ax < minX) minX = ax; if (ax > maxX) maxX = ax;
+    if (bx < minX) minX = bx; if (bx > maxX) maxX = bx;
+    if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
+    if (ay < minY) minY = ay; if (ay > maxY) maxY = ay;
+    if (by < minY) minY = by; if (by > maxY) maxY = by;
+    if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
+    if (az < minZ) minZ = az; if (az > maxZ) maxZ = az;
+    if (bz < minZ) minZ = bz; if (bz > maxZ) maxZ = bz;
+    if (cz < minZ) minZ = cz; if (cz > maxZ) maxZ = cz;
+    triCx[ti] = (ax+bx+cx)/3;
+    triCy[ti] = (ay+by+cy)/3;
+    triCz[ti] = (az+bz+cz)/3;
+    triArea[ti] = a;
+    triNzNorm[ti] = nzNorm;
+    triMinX[ti] = Math.min(ax,bx,cx);
+    triMaxX[ti] = Math.max(ax,bx,cx);
+    triMinY[ti] = Math.min(ay,by,cy);
+    triMaxY[ti] = Math.max(ay,by,cy);
+  }
+
+  // Spatial grid for raycast.
+  const cellsPerSide = Math.max(4, Math.ceil(Math.sqrt(nTris) / 2));
+  const cellW = (maxX-minX)/cellsPerSide || 1;
+  const cellH = (maxY-minY)/cellsPerSide || 1;
+  const cellKey = (ix, iy) => ix*100000 + iy;
+  const cellCounts = new Map();
+  for (let ti = 0; ti < nTris; ti++) {
+    const ix0 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMinX[ti]-minX)/cellW)));
+    const ix1 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMaxX[ti]-minX)/cellW)));
+    const iy0 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMinY[ti]-minY)/cellH)));
+    const iy1 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMaxY[ti]-minY)/cellH)));
+    for (let ix = ix0; ix <= ix1; ix++)
+      for (let iy = iy0; iy <= iy1; iy++) {
+        const k = cellKey(ix, iy);
+        cellCounts.set(k, (cellCounts.get(k) || 0) + 1);
+      }
+  }
+  const cellArrs = new Map();
+  const cellNext = new Map();
+  for (const [k, n] of cellCounts) {
+    cellArrs.set(k, new Int32Array(n));
+    cellNext.set(k, 0);
+  }
+  for (let ti = 0; ti < nTris; ti++) {
+    const ix0 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMinX[ti]-minX)/cellW)));
+    const ix1 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMaxX[ti]-minX)/cellW)));
+    const iy0 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMinY[ti]-minY)/cellH)));
+    const iy1 = Math.max(0, Math.min(cellsPerSide-1, Math.floor((triMaxY[ti]-minY)/cellH)));
+    for (let ix = ix0; ix <= ix1; ix++)
+      for (let iy = iy0; iy <= iy1; iy++) {
+        const k = cellKey(ix, iy);
+        const arr = cellArrs.get(k);
+        const next = cellNext.get(k);
+        arr[next] = ti;
+        cellNext.set(k, next + 1);
+      }
+  }
+  function pointInTriangle2D(px,py,ax,ay,bx,by,cx,cy) {
+    const denom = (by-cy)*(ax-cx) + (cx-bx)*(ay-cy);
+    if (Math.abs(denom) < 1e-9) return false;
+    const u = ((by-cy)*(px-cx) + (cx-bx)*(py-cy)) / denom;
+    const v = ((cy-ay)*(px-cx) + (ax-cx)*(py-cy)) / denom;
+    return u>=0 && v>=0 && (1-u-v)>=0;
+  }
+  let supportPotential = 0;
+  for (let ti = 0; ti < nTris; ti++) {
+    if (triNzNorm[ti] >= -0.7) continue;
+    const px=triCx[ti], py=triCy[ti], pz=triCz[ti];
+    const ix = Math.max(0, Math.min(cellsPerSide-1, Math.floor((px-minX)/cellW)));
+    const iy = Math.max(0, Math.min(cellsPerSide-1, Math.floor((py-minY)/cellH)));
+    const candidates = cellArrs.get(cellKey(ix, iy));
+    let highestZBelow = minZ;
+    if (candidates) {
+      for (let j = 0; j < candidates.length; j++) {
+        const cti = candidates[j];
+        if (cti === ti) continue;
+        const off = cti * 9;
+        const ax=tris[off],ay=tris[off+1];
+        const bx=tris[off+3],by=tris[off+4];
+        const cx=tris[off+6],cy=tris[off+7];
+        if (!pointInTriangle2D(px,py,ax,ay,bx,by,cx,cy)) continue;
+        const az=tris[off+2],bz=tris[off+5],cz=tris[off+8];
+        const e1x=bx-ax,e1y=by-ay,e1z=bz-az;
+        const e2x=cx-ax,e2y=cy-ay,e2z=cz-az;
+        const nx=e1y*e2z-e1z*e2y;
+        const ny=e1z*e2x-e1x*e2z;
+        const nz=e1x*e2y-e1y*e2x;
+        if (Math.abs(nz) < 1e-9) continue;
+        const planeZ = az - (nx*(px-ax) + ny*(py-ay))/nz;
+        if (planeZ >= pz - 0.1) continue;
+        if (planeZ > highestZBelow) highestZBelow = planeZ;
+      }
+    }
+    const heightOfSupport = pz - highestZBelow;
+    if (heightOfSupport > 0) supportPotential += triArea[ti] * heightOfSupport;
+  }
+
+  return {
+    volume: Math.abs(volume),
+    area, verticalArea,
+    footprint: horizontalArea / 2,
+    supportPotential,
+    triangles: nTris,
+    bbox: {
+      x: maxX-minX, y: maxY-minY, z: maxZ-minZ,
+      min: [minX, minY, minZ],
+      max: [maxX, maxY, maxZ],
+    }
+  };
+}
+
+// =================================================================
+// QUOTE — material via deployed Model 4, time via T3, range via
+// empirical quantiles, then full cost roll-up.
+// =================================================================
+function quote(metrics, mat, strategy, params) {
+  const volumeCm3       = metrics.volume / 1000;
+  const verticalAreaCm2 = metrics.verticalArea / 100;
+  const footprintCm2    = metrics.footprint / 100;
+  const supportCm3      = metrics.supportPotential / 1000;
+  const wallWidthCm     = params.nozzle / 10;   // mm to cm
+  const skinCm          = params.skin / 10;
+
+  // Material decomposition (deployed Model 4).
+  let perimVol = verticalAreaCm2 * wallWidthCm * strategy.walls;
+  perimVol = Math.min(perimVol, volumeCm3);
+  let skinVol = footprintCm2 * skinCm;
+  skinVol = Math.min(skinVol, Math.max(0, volumeCm3 - perimVol));
+  const interior = Math.max(0, volumeCm3 - perimVol - skinVol);
+  const infillVol = interior * strategy.infill;
+  const supportVol = supportCm3 * PHYSICS.supportDensity;
+  const materialCm3 = PHYSICS.scale * (perimVol + skinVol + infillVol) + supportVol;
+
+  // Time: T3 model.
+  const layerCount = metrics.bbox.z / strategy.layer;
+  const a = TIME_MODEL.a[strategy.id];
+  const b = TIME_MODEL.b[strategy.id];
+  const c = TIME_MODEL.c;
+  const timeHours = a * materialCm3 + b * layerCount + c * footprintCm2;
+  const band = TIME_BAND[strategy.id];
+  const timeLow  = timeHours * band.p10;
+  const timeHigh = timeHours * band.p90;
+
+  // Costs.
+  const weightG       = materialCm3 * mat.density;
+  const materialCost  = (weightG / 1000) * mat.price;
+  const machineCost   = timeHours * params.rate;
+  const energyCost    = timeHours * (params.powerW / 1000) * params.electricity;
+  const subTotal      = params.setup + materialCost + machineCost + energyCost;
+  const total         = subTotal * (1 + params.markup / 100);
+  // For range, scale ONLY the time-dependent costs (machine + energy) by
+  // the time band; material and setup don't move with time.
+  const machineLow    = timeLow  * params.rate;
+  const machineHigh   = timeHigh * params.rate;
+  const energyLow     = timeLow  * (params.powerW / 1000) * params.electricity;
+  const energyHigh    = timeHigh * (params.powerW / 1000) * params.electricity;
+  const totalLow      = (params.setup + materialCost + machineLow  + energyLow ) * (1 + params.markup / 100);
+  const totalHigh     = (params.setup + materialCost + machineHigh + energyHigh) * (1 + params.markup / 100);
+
+  return {
+    strategy,
+    materialCm3, weightG, timeHours, timeLow, timeHigh,
+    materialCost, machineCost, energyCost, total,
+    totalLow, totalHigh,
+    breakdown: { perimVol, skinVol, infillVol, supportVol, layerCount, a, b, c },
+  };
+}
+
+// =================================================================
+// 3D VIEWER (Three.js)
+// =================================================================
+let scene, camera, renderer, controls, currentMesh = null;
+function initViewer() {
+  const el = document.getElementById("viewer");
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color("#f0ede4");
+
+  camera = new THREE.PerspectiveCamera(45, el.clientWidth/el.clientHeight, 0.1, 5000);
+  camera.position.set(150, 150, 150);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(el.clientWidth, el.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  el.appendChild(renderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  // Lights: keep it bright and even so users can see the geometry.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const key = new THREE.DirectionalLight(0xffffff, 0.8);
+  key.position.set(1, 2, 3);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.4);
+  fill.position.set(-2, 1, -1);
+  scene.add(fill);
+
+  // Build plate grid for scale reference.
+  const grid = new THREE.GridHelper(200, 20, 0x999999, 0xcccccc);
+  grid.position.y = 0;
+  scene.add(grid);
+
+  function onResize() {
+    camera.aspect = el.clientWidth / el.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(el.clientWidth, el.clientHeight);
+  }
+  window.addEventListener("resize", onResize);
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+}
+
+function showMesh(tris, metrics) {
+  if (currentMesh) {
+    scene.remove(currentMesh);
+    currentMesh.geometry.dispose();
+    currentMesh.material.dispose();
+  }
+  // Center on the build plate so rotation is intuitive.
+  const cx = (metrics.bbox.min[0] + metrics.bbox.max[0]) / 2;
+  const cy = (metrics.bbox.min[1] + metrics.bbox.max[1]) / 2;
+  const minZ = metrics.bbox.min[2];
+
+  const positions = new Float32Array(tris.length);
+  for (let i = 0; i < tris.length; i += 3) {
+    positions[i  ] = tris[i  ] - cx;
+    positions[i+1] = tris[i+2] - minZ;  // Z up in print convention; map to Y in viewer
+    positions[i+2] = -(tris[i+1] - cy);  // flip Y to keep right-handed
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geom.computeVertexNormals();
+
+  const mat = new THREE.MeshLambertMaterial({
+    color: 0xc2410c, side: THREE.DoubleSide, flatShading: false,
+  });
+  currentMesh = new THREE.Mesh(geom, mat);
+  scene.add(currentMesh);
+
+  // Frame the mesh.
+  const span = Math.max(metrics.bbox.x, metrics.bbox.y, metrics.bbox.z);
+  camera.position.set(span*1.4, span*1.2, span*1.4);
+  controls.target.set(0, metrics.bbox.z/2, 0);
+  controls.update();
+
+  document.getElementById("viewerEmpty").style.display = "none";
+}
+
+// =================================================================
+// UI WIRING
+// =================================================================
+const $ = (id) => document.getElementById(id);
+const drop = $("drop"), fileInput = $("file");
+let currentMetrics = null;
+let currentTris = null;
+
+// Build the material dropdown.
+function buildMaterialSelect() {
+  const sel = $("material");
+  sel.innerHTML = "";
+  for (const k in MATERIAL_DEFAULTS) {
+    const opt = document.createElement("option");
+    opt.value = k;
+    const m = MATERIAL_DEFAULTS[k];
+    opt.textContent = `${m.name} — £${m.price}/kg`;
+    sel.appendChild(opt);
+  }
+  // Initialise density/price inputs to match the selected material.
+  syncMaterialFields();
+}
+function syncMaterialFields() {
+  const k = $("material").value;
+  const m = MATERIAL_DEFAULTS[k];
+  $("materialDensity").value = m.density;
+  $("materialPrice").value = m.price;
+}
+function buildStrategiesEditor() {
+  const root = $("strategiesEditor");
+  root.innerHTML = "";
+  const stripeColors = { draft: "#1f77b4", standard: "#ff7f0e", solid: "#2ca02c" };
+  STRATEGIES.forEach((s, i) => {
+    const wrap = document.createElement("div");
+    wrap.style.borderLeft = `3px solid ${stripeColors[s.id] || '#999'}`;
+    wrap.style.padding = "6px 10px";
+    wrap.style.margin = "8px 0";
+    wrap.style.background = "var(--bg)";
+    wrap.style.borderRadius = "3px";
+    wrap.innerHTML = `
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; margin-bottom: 6px;"
+           data-tip="Strategy ID — used to look up time-model coefficients. Don't rename.">
+        ${s.label}
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+        <label style="font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 2px;"
+               data-tip="Layer height in mm. Thicker = faster but coarser.">
+          layer (mm)
+          <input type="number" id="strat_${i}_layer" value="${s.layer}" min="0.05" max="0.6" step="0.01" style="width: 100%;">
+        </label>
+        <label style="font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 2px;"
+               data-tip="Infill density as fraction (0-1). 0.10 = 10% gyroid/cubic.">
+          infill
+          <input type="number" id="strat_${i}_infill" value="${s.infill}" min="0" max="1" step="0.05" style="width: 100%;">
+        </label>
+        <label style="font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 2px;"
+               data-tip="Number of perimeter walls (1-8). More walls = stronger but slower.">
+          walls
+          <input type="number" id="strat_${i}_walls" value="${s.walls}" min="1" max="8" step="1" style="width: 100%;">
+        </label>
+      </div>
+    `;
+    root.appendChild(wrap);
+  });
+  // Bind change events.
+  STRATEGIES.forEach((s, i) => {
+    ["layer", "infill", "walls"].forEach(k => {
+      $(`strat_${i}_${k}`).addEventListener("input", () => {
+        STRATEGIES[i][k] = parseFloat($(`strat_${i}_${k}`).value);
+        render();
+      });
+    });
+  });
+}
+
+["dragover", "dragenter"].forEach(e => drop.addEventListener(e, ev => {
+  ev.preventDefault(); drop.classList.add("hover");
+}));
+["dragleave", "drop"].forEach(e => drop.addEventListener(e, () => {
+  drop.classList.remove("hover");
+}));
+drop.addEventListener("drop", ev => {
+  ev.preventDefault();
+  const f = ev.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+fileInput.addEventListener("change", ev => {
+  const f = ev.target.files[0];
+  if (f) loadFile(f);
+});
+$("material").addEventListener("change", () => { syncMaterialFields(); render(); });
+[ "minH","maxH","materialDensity","materialPrice",
+  "rate","setup","powerW","electricity","markup",
+  "nozzle","skin"
+].forEach(id => $(id).addEventListener("input", render));
+$("resetDefaults").addEventListener("click", () => {
+  STRATEGIES = JSON.parse(JSON.stringify(STRATEGY_DEFAULTS));
+  $("nozzle").value = 0.4;
+  $("skin").value = 1.0;
+  buildStrategiesEditor();
+  render();
+});
+
+function loadFile(file) {
+  $("filename").textContent = file.name;
+  $("dropTitle").textContent = "Loaded — drop another to replace";
+  $("triCount").textContent = "loading…";
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const tris = parseSTL(e.target.result);
+      currentTris = tris;
+      currentMetrics = meshMetrics(tris);
+      $("triCount").textContent = `${currentMetrics.triangles.toLocaleString()} tris`;
+      showMesh(tris, currentMetrics);
+      render();
+    } catch (err) {
+      $("stats").innerHTML = `<div class="warn">Could not parse STL: ${err.message}</div>`;
+      $("triCount").textContent = "error";
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function fmt(n, d=2) {
+  if (!isFinite(n)) return "—";
+  return n.toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+function render() {
+  if (!currentMetrics) return;
+  const m = currentMetrics;
+
+  // Pull current parameters from the form.
+  const matKey = $("material").value;
+  const mat = {
+    name:    MATERIAL_DEFAULTS[matKey].name,
+    density: parseFloat($("materialDensity").value) || 1.0,
+    price:   parseFloat($("materialPrice").value)   || 0.0,
+  };
+  const params = {
+    minH:        parseFloat($("minH").value) || 0,
+    maxH:        parseFloat($("maxH").value) || Infinity,
+    rate:        parseFloat($("rate").value) || 0,
+    setup:       parseFloat($("setup").value) || 0,
+    powerW:      parseFloat($("powerW").value) || 0,
+    electricity: parseFloat($("electricity").value) || 0,
+    markup:      parseFloat($("markup").value) || 0,
+    nozzle:      parseFloat($("nozzle").value) || 0.4,
+    skin:        parseFloat($("skin").value)   || 1.0,
+  };
+
+  const heightMm = m.bbox.z;
+  const inRange = heightMm >= params.minH && heightMm <= params.maxH;
+
+  $("stats").innerHTML = `
+    <div class="stats">
+      <div class="k" data-tip="Triangle count of the loaded STL.">Triangles</div>
+      <div class="v">${m.triangles.toLocaleString()}</div>
+      <div class="k" data-tip="Signed-tetrahedron volume — the mesh's internal volume.">Volume</div>
+      <div class="v">${fmt(m.volume/1000, 2)} cm³</div>
+      <div class="k" data-tip="Total surface area of the mesh.">Surface area</div>
+      <div class="v">${fmt(m.area/100, 1)} cm²</div>
+      <div class="k" data-tip="Side-wall area: triangles with |n_z| < 0.7. Drives perimeter material.">Vertical area</div>
+      <div class="v">${fmt(m.verticalArea/100, 1)} cm²</div>
+      <div class="k" data-tip="Top-down silhouette: half the horizontal-triangle area. Drives skin material and per-layer skin time.">Footprint</div>
+      <div class="v">${fmt(m.footprint/100, 1)} cm²</div>
+      <div class="k" data-tip="Sum of (overhang_area × gap_to_surface_below) — material PrusaSlicer would extrude as sparse support if generation is on.">Support potential</div>
+      <div class="v">${fmt(m.supportPotential/1000, 2)} cm³</div>
+      <div class="k" data-tip="Axis-aligned bounding box.">Bounding box X×Y×Z</div>
+      <div class="v">${fmt(m.bbox.x,1)} × ${fmt(m.bbox.y,1)} × ${fmt(m.bbox.z,1)} mm</div>
+      <div class="k" data-tip="Z-axis = height by print convention. Compared against your min/max constraints.">Height (Z)</div>
+      <div class="v ${inRange?'ok':'fail'}">${fmt(heightMm,1)} mm ${inRange?'✓':'✗'}</div>
+    </div>
+    ${!inRange ? `<div class="warn">Z-height ${fmt(heightMm,1)} mm is outside your ${params.minH}–${params.maxH} mm range. Quotes still computed below.</div>` : ''}
+  `;
+
+  const quotes = STRATEGIES.map(s => quote(m, mat, s, params));
+  const cheapest = quotes.reduce((a,b) => a.total < b.total ? a : b);
+
+  $("quote").innerHTML = `
+    <div class="ci-explainer">
+      <strong>How to read the quote.</strong> The bold price is our <strong>point estimate</strong> (best single guess). Beneath each price you'll see a
+      <span class="ci-low">£low</span><span class="ci-sep">–</span><span class="ci-high">£high</span> bracket — the
+      <strong>80% confidence interval</strong>. 8 in 10 actual prints land inside it. We derive it empirically from 439 validation jobs (147 real meshes × 3 strategies, each sliced in PrusaSlicer): for the winning time model, we measured the 10th and 90th percentile of <code>actual / predicted</code> on held-out folds. The bracket is asymmetric (lower bound ≈ 86% of point, upper bound ≈ 180%) because long-tail prints — lattices, tall thin parts, anything that triggers cooling delays — skew the distribution upward. Quote customers using the high end; plan your queue using the high end too.
+    </div>
+    <table class="quotes">
+      <thead>
+        <tr>
+          <th data-tip="Slicing strategy. See the descriptions in the panel below.">Strategy</th>
+          <th data-tip="Layer height in mm.">Layer</th>
+          <th data-tip="Infill density.">Infill</th>
+          <th data-tip="Perimeter wall count.">Walls</th>
+          <th data-tip="Material × density. Equals filament you actually pay for.">Weight</th>
+          <th data-tip="Predicted print time. The blue/red bracket is the 80% confidence interval — the 10th and 90th percentile of held-out validation residuals.">Time (80% CI)</th>
+          <th data-tip="Weight × £/kg.">Material £</th>
+          <th data-tip="Time × machine rate (£/h). The CI scales with the time CI.">Machine £</th>
+          <th data-tip="Time × power (kW) × electricity rate. Usually small but worth showing on long jobs.">Energy £</th>
+          <th data-tip="Setup + material + machine + energy, all × (1 + markup%). The bracket is the 80% confidence interval propagated from the time uncertainty.">Total (80% CI)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${quotes.map(q => `
+          <tr class="${q===cheapest?'recommended':''}">
+            <td>${q.strategy.label}</td>
+            <td class="num">${fmt(q.strategy.layer, 2)} mm</td>
+            <td class="num">${(q.strategy.infill*100).toFixed(0)}%</td>
+            <td class="num">${q.strategy.walls}</td>
+            <td class="num">${fmt(q.weightG, 1)} g</td>
+            <td class="num">
+              ${fmt(q.timeHours, 2)} h<br>
+              <span class="ci-low">${fmt(q.timeLow, 2)}</span><span class="ci-sep">–</span><span class="ci-high">${fmt(q.timeHigh, 2)} h</span>
+            </td>
+            <td class="num">£${fmt(q.materialCost, 2)}</td>
+            <td class="num">£${fmt(q.machineCost, 2)}</td>
+            <td class="num">£${fmt(q.energyCost, 2)}</td>
+            <td class="num price">
+              £${fmt(q.total, 2)}<br>
+              <span class="ci-low">£${fmt(q.totalLow, 2)}</span><span class="ci-sep">–</span><span class="ci-high">£${fmt(q.totalHigh, 2)}</span>
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+    <p style="font-size: 11px; color: var(--muted); margin-top: 12px; font-family: 'IBM Plex Mono', monospace;">
+      ★ cheapest after markup · markup ${params.markup}% applied to setup + material + machine + energy
+    </p>
+  `;
+}
+
+// =================================================================
+// BOOT
+// =================================================================
+buildMaterialSelect();
+buildStrategiesEditor();
+initViewer();
+</script>
+</body>
+</html>
